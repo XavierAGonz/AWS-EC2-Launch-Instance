@@ -1,0 +1,5 @@
+ec2_instance:
+    instance_id: ['YOUR_INSTANCE_ID']
+    region_id: 'YOUR_REGION_ID'
+    access_key: 'YOUR_ACCESS_KEY'
+    secret_access_key: 'YOUR_SECRET_ACCESS_KEY'
