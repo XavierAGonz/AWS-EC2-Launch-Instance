@@ -79,7 +79,7 @@ if(starting):
     ssh_connect_attempt(ssh, ip_address, 0)
 
     stdin, stdout, stderr = ssh.exec_command(
-        'sudo mkfs.ext4 -E nodiscard /dev/nvme1n1\nmkdir /data\nsudo mount /dev/nvme1n1 /data\nsudo mkdir /data/server\nsudo aws configure\n' + accessKey + '\n' + secretAccessKey + '\n' + region + '\n\nsudo aws s3 sync s3://rad-server-files /data\nsudo unzip /data/server.zip -d /data/server\ncd /data/server/\nscreen -dmS minecraft sudo java -Xmx' + maxRAM + ' -Xms' + minRAM + ' -XX:PermSize=512m -jar server.jar nogui')
+        'sudo mkfs.ext4 -E nodiscard /dev/nvme1n1\nmkdir /data\nsudo mount /dev/nvme1n1 /data\nsudo mkdir /data/server\nsudo aws configure\n' + accessKey + '\n' + secretAccessKey + '\n' + region + '\n\nsudo aws s3 sync s3://rad-server-files /data\nsudo unzip /data/server.zip -d /data/server\nsudo rm -r /data/server.zip\ncd /data/server/\nscreen -dmS minecraft sudo java -Xmx' + maxRAM + ' -Xms' + minRAM + ' -XX:PermSize=512m -jar server.jar nogui')
     ssh.close()
     print('Please wait for the server to finsih starting!')
 
@@ -96,7 +96,7 @@ while True:
         ssh.close()
         time.sleep(8)
         ssh_connect_attempt(ssh, ip_address, 0)
-        stdin, stdout, stderr = ssh.exec_command('cd /data\nsudo zip -r server.zip /data/server\nsudo aws s3 sync /data/server.zip s3://rad-server-files\ncd /data\nsudo rm -r /data/server/')
+        stdin, stdout, stderr = ssh.exec_command('cd /data\nsudo zip -r server.zip /data/server/\nsudo aws s3 sync /data/server.zip s3://rad-server-files\ncd /data\nsudo rm -r /data/server/')
         time.sleep(4)
         ssh.close()
         print('Shutting down instances!')
