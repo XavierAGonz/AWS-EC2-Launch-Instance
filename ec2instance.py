@@ -1,7 +1,10 @@
 import boto3
 import os
+import sys
 from pathlib import Path
 import yaml
+import time
+import paramiko
 
 #Creates nessacary files needed (utilizes yaml configuration)
 dirPath = Path("ec2_files")
@@ -18,30 +21,97 @@ region = config['ec2_instance']['region_id']
 instances = config['ec2_instance']['instance_id']
 accessKey = config['ec2_instance']['access_key']
 secretAccessKey = config['ec2_instance']['secret_access_key']
+ssh_user = config['ec2_instance']['ec2_user']
+keyfile = config['ssh']['keyfile']
+minRAM = config['mc']['xms']
+maxRAM = config['mc']['xmx']
+
 
 ec2 = boto3.client('ec2', region_name=region, aws_access_key_id=accessKey, aws_secret_access_key=secretAccessKey)
 resource = boto3.resource('ec2', region_name=region, aws_access_key_id=accessKey, aws_secret_access_key=secretAccessKey)
 
 #Checks if running
-print("Checking if instance is already running.")
 response = ec2.describe_instance_status(InstanceIds=instances, IncludeAllInstances=True)
 if response['InstanceStatuses'][0]['InstanceState']['Name'] == 'running':
     print('It is already running!')
+    starting = False
 else:
-    ec2.start_instances(InstanceIds=instances)
-    print('Started your instances: ' + str(instances))
+    try:
+        ec2.start_instances(InstanceIds=instances)
+        print('Starting your instances: {}'.format(instances))
+        starting = True
+    except:
+        print('The instance seems to not be in a running state pelase wait a few seconds and try again\nOr there might be issues with the server')
+        sys.exit()
 
-for i in resource.instances.all():
-    i.wait_until_running()
-    i.reload()
-    print(i.public_ip_address)
-
-while True:
-    cmd = input('Type \'stop\' to shutdown\n')
-    if(cmd == 'stop'):
-        print('Shutting down!')
+#Function to retry connections
+def ssh_connect_attempt(ssh, ip_address, retries):
+    if retries > 3:
+        print('Couldn\'t connect!')
         ec2.stop_instances(InstanceIds=instances)
-        print('Stopped your instances: ' + str(instances))
+        sys.exit()
+    key = paramiko.RSAKey.from_private_key_file(
+        './ec2_files/' + keyfile)
+    interval = 5
+    try:
+        retries += 1
+        print('SSH into the instance: {}'.format(ip_address))
+        ssh.connect(hostname=ip_address,
+            username='ec2-user', pkey=key)
+    except Exception as e:
+        time.sleep(interval)
+        print('Retrying SSH connection to {}'.format(ip_address))
+        ssh_connect_attempt(ssh, ip_address, retries)
+
+#Get instance info
+instance = resource.Instance(id=instances[0])
+instance.wait_until_running()
+current_instance = list(resource.instances.filter(InstanceIds=[instances[0]]))
+ip_address = current_instance[0].public_ip_address
+print('Your instance IP: {}'.format(ip_address))
+
+#Run commands to build server
+ssh = paramiko.SSHClient()
+ssh.set_missing_host_key_policy(paramiko.AutoAddPolicy())
+if(starting):
+    print('Setting up the necassary files!')
+
+    ssh_connect_attempt(ssh, ip_address, 0)
+
+    stdin, stdout, stderr = ssh.exec_command(
+        'sudo yum install java-1.8.0-openjdk -y\nsudo mkfs.ext4 -E nodiscard /dev/nvme1n1\nmkdir /data\nsudo mount /dev/nvme1n1 /data\nsudo mkdir /data/server\nsudo aws configure\n' + accessKey + '\n' + secretAccessKey + '\n' + region + '\n\nsudo aws s3 sync s3://rad-server-files /data/server/\ncd /data/server/\nscreen -dmS minecraft sudo java -Xmx' + maxRAM + ' -Xms' + minRAM + ' -jar server.jar nogui')
+    ssh.close()
+    print('Please wait for the server to finsih starting!')
+
+#Asks to stop server
+print('\n\nThe IP is {}'.format(ip_address) + '\n\n')
+while True:
+    cmd = input('Type \'stop\' to shutdown OR type \'stopmc\' to only shutdown the Minecraft server!\n')
+    if(cmd == 'stop'):
+        print('Shutting down Minecraft Server!')
+
+        ssh_connect_attempt(ssh, ip_address, 0)
+
+        stdin, stdout, stderr = ssh.exec_command('screen -S minecraft -p 0 -X stuff "stop^M"')
+        ssh.close()
+        time.sleep(8)
+        ssh_connect_attempt(ssh, ip_address, 0)
+        stdin, stdout, stderr = ssh.exec_command('sudo aws s3 sync /data/server/ s3://rad-server-files\ncd /data\nsudo rm -r /data/server/')
+        time.sleep(4)
+        ssh.close()
+        print('Shutting down instances!')
+        ec2.stop_instances(InstanceIds=instances)
+        print('Stopped your instances: {}'.format(instances))
+        break
+    elif(cmd == 'stopmc'):
+        print('Shutting down Minecraft Server!')
+
+        ssh_connect_attempt(ssh, ip_address, 0)
+
+        stdin, stdout, stderr = ssh.exec_command('sudo screen -S minecraft -p 0 -X stuff "stop^M"\nsudo aws s3 sync /data/server/ s3://rad-server-files\ncd /data')
+        ssh.close()
+        print('The Minecraft server has been stopped!')
         break
     else:
         print('You didn\'t type stop!')
+    
