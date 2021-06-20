@@ -96,7 +96,7 @@ while True:
         ssh.close()
         time.sleep(8)
         ssh_connect_attempt(ssh, ip_address, 0)
-        stdin, stdout, stderr = ssh.exec_command('cd /data\nsudo zip -r server.zip /data/server/\nsudo aws s3 sync /data/server.zip s3://rad-server-files\ncd /data\nsudo rm -r /data/server/')
+        stdin, stdout, stderr = ssh.exec_command('cd /data\nsudo zip -r server.zip /data/server/\nsudo aws s3 cp /data/server.zip s3://rad-server-files\ncd /data\nsudo rm -r /data/server/\nsudo rm /data/server.zip')
         time.sleep(4)
         ssh.close()
         print('Shutting down instances!')
@@ -108,7 +108,7 @@ while True:
 
         ssh_connect_attempt(ssh, ip_address, 0)
 
-        stdin, stdout, stderr = ssh.exec_command('sudo screen -S minecraft -p 0 -X stuff "stop^M"\ncd /data\nsudo zip -r server.zip /data/server\nsudo aws s3 sync /data/server.zip s3://rad-server-files\ncd /data')
+        stdin, stdout, stderr = ssh.exec_command('sudo screen -S minecraft -p 0 -X stuff "stop^M"\ncd /data\nsudo zip -r server.zip /data/server/\nsudo aws s3 cp /data/server.zip s3://rad-server-files\ncd /data')
         ssh.close()
         print('The Minecraft server has been stopped!')
         break
