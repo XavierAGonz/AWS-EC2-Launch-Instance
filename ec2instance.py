@@ -79,7 +79,7 @@ if(starting):
     ssh_connect_attempt(ssh, ip_address, 0)
 
     stdin, stdout, stderr = ssh.exec_command(
-        'sudo mkfs.ext4 -E nodiscard /dev/nvme1n1\nmkdir /data\nsudo mount /dev/nvme1n1 /data\nsudo mkdir /data/server\nsudo aws configure\n' + accessKey + '\n' + secretAccessKey + '\n' + region + '\n\nsudo aws s3 sync s3://rad-server-files /data/server/\ncd /data/server/\nscreen -dmS minecraft sudo java -Xmx' + maxRAM + ' -Xms' + minRAM + ' -jar server.jar nogui')
+        'sudo mkfs.ext4 -E nodiscard /dev/nvme1n1\nmkdir /data\nsudo mount /dev/nvme1n1 /data\nsudo mkdir /data/server\nsudo aws configure\n' + accessKey + '\n' + secretAccessKey + '\n' + region + '\n\nsudo aws s3 sync s3://rad-server-files /data/server/\ncd /data/server/\nscreen -dmS minecraft sudo java -Xmx' + maxRAM + ' -Xms' + minRAM + ' -XX:PermSize=512m -jar server.jar nogui')
     ssh.close()
     print('Please wait for the server to finsih starting!')
 
