@@ -75,11 +75,10 @@ ssh = paramiko.SSHClient()
 ssh.set_missing_host_key_policy(paramiko.AutoAddPolicy())
 if(starting):
     print('Setting up the necassary files!')
-
     ssh_connect_attempt(ssh, ip_address, 0)
-
     stdin, stdout, stderr = ssh.exec_command(
-        'sudo mkfs.ext4 -E nodiscard /dev/nvme1n1\nmkdir /data\nsudo mount /dev/nvme1n1 /data\nsudo mkdir /data/server\nsudo aws configure\n' + accessKey + '\n' + secretAccessKey + '\n' + region + '\n\nsudo aws s3 sync s3://rad-server-files /data\nsudo unzip /data/server.zip -d /data/server\nsudo rm -r /data/server.zip\ncd /data/server/\nscreen -dmS minecraft sudo java -Xmx' + maxRAM + ' -Xms' + minRAM + ' -XX:PermSize=512m -jar server.jar nogui')
+        'sudo mfks.ext4 -F -E nodiscard /dev/nvme1n1\nsudo mkdir /data\nsudo mount /dev/nvme1n1 /data\nsudo mkdir /data/server\nsudo aws s3 sync s3://rad-server-files ~\nsudo mv ~/server.zip /data\nsudo unzip /data/server.zip -d /data/server\nscreen -dmS minecraft sudo java -Xmx' + maxRAM + ' -Xms' + minRAM + ' -XX:PermSize=512m -jar server.jar nogui'
+    )
     ssh.close()
     print('Please wait for the server to finsih starting!')
 
@@ -94,23 +93,17 @@ while True:
 
         stdin, stdout, stderr = ssh.exec_command('screen -S minecraft -p 0 -X stuff "stop^M"')
         ssh.close()
+        print('Please wait 8 more seconds for the minecraft server to shutdown')
         time.sleep(8)
         ssh_connect_attempt(ssh, ip_address, 0)
-        stdin, stdout, stderr = ssh.exec_command('cd /data/server\nsudo zip -r server.zip .\nsudo mv server.zip ..\nsudo aws s3 cp /data/server.zip s3://rad-server-files\ncd /data\nsudo rm -r /data/server/\nsudo rm /data/server.zip')
+        stdin, stdout, stderr = ssh.exec_command(
+            'sudo rm -r /data/server.zip\ncd /data/server/\nsudo zip -r server.zip .\nsudo mv /data/server/server.zip ~\nsudo aws s3 cp ~/server.zip s3://rad-server-files\nsudo rm -r /data/server'
+            )
         time.sleep(4)
         ssh.close()
         print('Shutting down instances!')
         ec2.stop_instances(InstanceIds=instances)
         print('Stopped your instances: {}'.format(instances))
-        break
-    elif(cmd == 'stopmc'):
-        print('Shutting down Minecraft Server!')
-
-        ssh_connect_attempt(ssh, ip_address, 0)
-
-        stdin, stdout, stderr = ssh.exec_command('sudo screen -S minecraft -p 0 -X stuff "stop^M"\ncd /data/server\nsudo zip -r server.zip .\nsudo mv server.zipo ..\nsudo aws s3 cp /data/server.zip s3://rad-server-files\ncd /data')
-        ssh.close()
-        print('The Minecraft server has been stopped!')
         break
     else:
         print('You didn\'t type stop!')
