@@ -91,15 +91,7 @@ while True:
 
         ssh_connect_attempt(ssh, ip_address, 0)
 
-        stdin, stdout, stderr = ssh.exec_command('screen -S minecraft -p 0 -X stuff "stop^M"')
-        ssh.close()
-        print('Please wait 8 more seconds for the minecraft server to shutdown')
-        time.sleep(8)
-        ssh_connect_attempt(ssh, ip_address, 0)
-        stdin, stdout, stderr = ssh.exec_command(
-            'sudo rm -r /data/server.zip\ncd /data/server/\nsudo zip -r server.zip .\nsudo mv /data/server/server.zip ~\nsudo aws s3 cp ~/server.zip s3://rad-server-files\nsudo rm -r /data/server'
-            )
-        time.sleep(4)
+        stdin, stdout, stderr = ssh.exec_command('screen -S minecraft -p 0 -X stuff "stop^M"\nsudo rm -r /data/server.zip\ncd /data/server/\nsudo zip -r server.zip .\nsudo mv /data/server/server.zip ~\nsudo aws s3 cp ~/server.zip s3://rad-server-files\nsudo rm -r /data/server')
         ssh.close()
         print('Shutting down instances!')
         ec2.stop_instances(InstanceIds=instances)
